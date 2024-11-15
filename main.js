@@ -7,6 +7,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 import { Grid2D } from './Grid2D.js';
 import { Grid3D } from './Grid3D.js';
+import { TransformControls } from './jsm/controls/TransformControls.js';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x555555);
@@ -36,8 +37,8 @@ orbitControls.update()
 const grid3d = new Grid3D(4, 4, 3);
 scene.add(grid3d)
 
-const point0 = new THREE.Vector3(-0.7, -0.1, 0);
-const point1 = new THREE.Vector3(3.75, 4.5, 0);
+const point0 = new THREE.Vector3(-0.7, -0.1, 0.2);
+const point1 = new THREE.Vector3(3.75, 4.5, 1.5);
 
 const points = [point0, point1];
 
@@ -92,6 +93,10 @@ function updateRay(pId, pos) {
 updateRay(0, point0)
 updateRay(1, point1)
 
+let requiresUpdate = true;
+
+
+
 const sphereGeometry = new THREE.SphereGeometry( 0.05, 16, 16 );
 const sphereMaterial = new THREE.MeshPhongMaterial( { color: 0x4499FF, transparent: true, opacity: 0.5 } );
 const spheres = [
@@ -115,6 +120,50 @@ let inter0 = new THREE.Mesh(sphereGeometry2, sphereMaterial2)
 let inter1 = new THREE.Mesh(sphereGeometry2, sphereMaterial2)
 scene.add(inter0)
 scene.add(inter1)
+
+
+
+function recompute() {
+  if(requiresUpdate) {
+    initiateMarch(ray);
+    requiresUpdate = false;
+  }
+}
+
+
+
+const transformControl0 = new TransformControls(camera, renderer.domElement);
+transformControl0.attach(spheres[0])
+transformControl0.setSize(0.25)
+scene.add(transformControl0.getHelper());
+const transformControl1 = new TransformControls(camera, renderer.domElement);
+transformControl1.attach(spheres[1])
+scene.add(transformControl1.getHelper());
+transformControl1.setSize(0.25)
+
+transformControl0.addEventListener('change', function(event) {
+  if(transformControl0.dragging) {
+    updateRay(0, spheres[0].position);
+    requiresUpdate = true;
+  }
+});
+transformControl0.addEventListener('dragging-changed', function(event) {
+  orbitControls.enabled = !event.value;
+});
+transformControl1.addEventListener('dragging-changed', function(event) {
+  orbitControls.enabled = !event.value;
+});
+
+
+transformControl1.addEventListener('change', function(event) {
+  if(transformControl1.dragging) {
+    updateRay(1, spheres[1].position);
+    requiresUpdate = true;
+  }
+});
+
+
+
 
 
 const epsilon = 0.00000001;
@@ -145,7 +194,7 @@ function showLods() {
     scene.add(LODSMESHES[lod])
 
     const matrix = new THREE.Matrix4();
-    const scaleVector = (new THREE.Vector3(1, 1, 1)).multiplyScalar(1/(2*lod+1))
+    const scaleVector = (new THREE.Vector3(1, 1, 1)).multiplyScalar(1.5/(lod+1))
     const rotation = new THREE.Quaternion()
     for(let i = 0; i < LODS[lod].length; ++i) {
       matrix.compose(LODS[lod][i], rotation, scaleVector)
@@ -243,8 +292,8 @@ function stepThroughCell(cell, ray, entryPoint, entryT, exitT, lod = 0, offset =
 
   /// DEBUG
   showCell(cell, lod, cellOffset.clone());
-  // const debugPos = firstPoint.clone().multiplyScalar(resolutionLoD[lod]).addScaledVector(cellOffset, 4);
-  // LODS[lod].push(debugPos)
+  const debugPos = firstPoint.clone().multiplyScalar(resolutionLoD[lod]).addScaledVector(cellOffset, 4);
+  LODS[lod].push(debugPos)
   /// 
 
   const nextBoundary = firstPoint.clone().floor().add(dirSigns);
@@ -402,6 +451,7 @@ window.addEventListener('resize', function() {
 
 function animate() {
   renderer.render( scene, camera );
+  recompute()
 }
 
 renderer.setAnimationLoop( animate );
