@@ -6,6 +6,7 @@ import Stats from 'three/addons/libs/stats.module.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 import { Grid2D } from './Grid2D.js';
+import { Grid3D } from './Grid3D.js';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x555555);
@@ -27,18 +28,13 @@ document.body.appendChild( renderer.domElement );
 
 const orbitControls = new OrbitControls(camera, renderer.domElement);
 // orbitControls.enablePan = false;
-orbitControls.enableRotate = false;
+// orbitControls.enableRotate = false;
 orbitControls.target.set(2, 2, 0);
 orbitControls.update()
 
 
-
-
-
-const grid2d = new Grid2D(4, 4, 2);
-scene.add(grid2d)
-const grid2d0 = new Grid2D(4, 1, 5, );
-scene.add(grid2d0)
+const grid3d = new Grid3D(4, 4, 3);
+scene.add(grid3d)
 
 const point0 = new THREE.Vector3(-0.7, -0.1, 0);
 const point1 = new THREE.Vector3(3.75, 4.5, 0);
