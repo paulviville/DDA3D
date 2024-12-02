@@ -62,7 +62,6 @@ const ray = {
 const maxLoD = 4;
 const gridManager = new LoDGrid3DManager(4)
 gridManager.addTo(scene)
-gridManager.showCell(0, new THREE.Vector3(0, 0, 0));
 
 
 
@@ -120,6 +119,7 @@ function recompute() {
   if(requiresUpdate) {
     gridManager.reset()
     initiateMarch(ray);
+    gridManager.update();
     requiresUpdate = false;
   }
 }

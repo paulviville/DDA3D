@@ -84,6 +84,7 @@ export class LoDGrid3DManager {
 	#scene;
 	#lodOffsets = [];
 	#instanceMatrix;
+	#visibleCells = [];
 	
 	constructor(nbLoDs = 1) {
 		this.#nbLoDs = nbLoDs;
@@ -164,11 +165,20 @@ export class LoDGrid3DManager {
 			cell.z * size
 		);
 
+		const matId = this.#visibleCells.length;
+		this.#visibleCells.push(id + offset);
+
 		const matrix = new THREE.Matrix4();
 		matrix.compose(position, rotation, scale);
-		matrix.toArray(this.#instanceMatrix, (id + offset)*16);
+		// matrix.toArray(this.#instanceMatrix, (id + offset)*16);
+		matrix.toArray(this.#instanceMatrix, matId*16);
 
+	}
+
+	update() {
 		this.#mesh.geometry.attributes.instanceMatrix.needsUpdate = true
+		this.#mesh.geometry.instanceCount = this.#visibleCells.length;
+		console.log(this.#visibleCells.length)
 	}
 
 	hideCell(lod = 0, cell = new THREE.Vector3(0, 0, 0)) {
@@ -182,6 +192,7 @@ export class LoDGrid3DManager {
 
 	reset() {
 		const matrix = new THREE.Matrix4().multiplyScalar(0);
+		this.#visibleCells.length = 0;
 		for(let i = 0; i < this.#totalCellNb; ++i) {
 			matrix.toArray(this.#instanceMatrix, i*16);
 		}
