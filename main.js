@@ -6,8 +6,11 @@ import Stats from 'three/addons/libs/stats.module.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 import { Grid2D } from './Grid2D.js';
-import { Grid3D } from './Grid3D.js';
+import { Grid3D, LoDGrid3DManager } from './Grid3D.js';
 import { TransformControls } from './jsm/controls/TransformControls.js';
+
+const stats = new Stats()
+document.body.appendChild( stats.dom );
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x555555);
@@ -18,7 +21,7 @@ let pointLight0 = new THREE.PointLight(0xffffff, 100);
 pointLight0.position.set(5,4,5);
 scene.add(pointLight0);
 
-const camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 50 );
+const camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.01, 50 );
 camera.position.set( 2, 2, 6 );
 
 const renderer = new THREE.WebGLRenderer({antialias: true});
@@ -34,8 +37,7 @@ orbitControls.target.set(2, 2, 0);
 orbitControls.update()
 
 
-const grid3d = new Grid3D(4, 4, 3);
-scene.add(grid3d)
+
 
 const point0 = new THREE.Vector3(-0.7, -0.1, 0.2);
 const point1 = new THREE.Vector3(3.75, 4.5, 1.5);
@@ -57,23 +59,14 @@ const ray = {
 }
 
 
-const maxLoD = 5;
+const maxLoD = 4;
+const gridManager = new LoDGrid3DManager(4)
+gridManager.addTo(scene)
+gridManager.showCell(0, new THREE.Vector3(0, 0, 0));
 
-let gridCells = new THREE.Group();
-scene.add(gridCells);
-let color = 0x777799
-function showCell(cell, lod = 0, offset = new THREE.Vector3()) {
-  const cellGrid = new Grid2D(
-    4 / Math.pow(4, lod),
-    4, 1, color, 
-    offset.multiplyScalar(4))
-  gridCells.add(cellGrid)
-}
 
 
 function updateRay(pId, pos) {
-  const children = gridCells.children.map(x => x)
-  children.forEach(c => gridCells.remove(c));
   
   const index = pId * 3;
   rayPositions.array[index] = pos.x;
@@ -125,6 +118,7 @@ scene.add(inter1)
 
 function recompute() {
   if(requiresUpdate) {
+    gridManager.reset()
     initiateMarch(ray);
     requiresUpdate = false;
   }
@@ -179,7 +173,7 @@ const moves = new THREE.Vector3();
 /// debug 
 const LODS = [[], [], [], [], [], []]
 const LODSSPHERE = new THREE.SphereGeometry( 0.025, 10, 10 );
-const LODSSPHEREMATERIALS = new THREE.MeshPhongMaterial( { color: 0xFFFFFF} );
+const LODSSPHEREMATERIALS = new THREE.MeshPhongMaterial( { color: 0xFF0000} );
 
 const LODSMESHES = []
 function showLods() {
@@ -271,7 +265,7 @@ function initiateMarch(ray) {
   ///
 }
 
-function stepThroughCell(cell, ray, entryPoint, entryT, exitT, lod = 0, offset = new THREE.Vector3(), depth = 0) {  
+function stepThroughCell(cell, ray, entryPoint, entryT, exitT, lod = 0, offset = new THREE.Vector3(), depth = 0, globalCell = new THREE.Vector3()) {  
   if(lod >= maxLoD)
     return;
 
@@ -291,9 +285,14 @@ function stepThroughCell(cell, ray, entryPoint, entryT, exitT, lod = 0, offset =
   const firstPoint = entryPoint.clone().sub(cell).multiplyScalar(4);
 
   /// DEBUG
-  showCell(cell, lod, cellOffset.clone());
+  // showCell(cell, lod, cellOffset.clone());
   const debugPos = firstPoint.clone().multiplyScalar(resolutionLoD[lod]).addScaledVector(cellOffset, 4);
   LODS[lod].push(debugPos)
+
+  const globalCellLod = globalCell.clone().multiplyScalar(4).add(cell);
+  gridManager.showCell(lod, globalCellLod);
+  // console.log(lod, cell, globalCellLod);
+  
   /// 
 
   const nextBoundary = firstPoint.clone().floor().add(dirSigns);
@@ -334,9 +333,10 @@ function stepThroughCell(cell, ray, entryPoint, entryT, exitT, lod = 0, offset =
 
 
 
+
   for(let j = 0; j < i; ++j) {
     const newDepth = depth + hits[j] * resolutionLoD[lod];
-    if(newDepth < 5 / (lod*1.25))
+    if(newDepth < 10 / (lod*1.25))
     stepThroughCell(
       voxelHits[j].clone(),
       ray,
@@ -346,6 +346,7 @@ function stepThroughCell(cell, ray, entryPoint, entryT, exitT, lod = 0, offset =
       lod+1,
       cellOffset.clone(),
       newDepth,
+      globalCellLod,
     );
   }
 }
@@ -421,10 +422,12 @@ function onPointerDown(event) {
 
 function onPointerMove(event) {
   setMouse(event.clientX, event.clientY);
+  console.log("pointer move")
   raycaster.setFromCamera(mouse, camera);
   const point = raycaster.intersectObject(backgroundPlane)[0].point;
   point.z = 0;
   spheres[selectedPoint].position.copy(point);
+  gridManager.reset();
   updateRay(selectedPoint, point);
 
   initiateMarch(ray);
@@ -451,6 +454,7 @@ window.addEventListener('resize', function() {
 
 function animate() {
   renderer.render( scene, camera );
+  stats.update()
   recompute()
 }
 
