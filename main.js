@@ -1,19 +1,17 @@
 import * as THREE from 'three';
 
-import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import Stats from 'three/addons/libs/stats.module.js';
 
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-import { Grid2D } from './Grid2D.js';
-import { Grid3D, LoDGrid3DManager } from './Grid3D.js';
+import { LoDGrid3DManager } from './Grid3D.js';
 import { TransformControls } from './jsm/controls/TransformControls.js';
 
 const stats = new Stats()
 document.body.appendChild( stats.dom );
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x555555);
+scene.background = new THREE.Color(0xffffff);
 
 let ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
 scene.add(ambientLight);
@@ -171,37 +169,6 @@ const scaleLoD = new Array(maxLoD);
 const moves = new THREE.Vector3();
 
 /// debug 
-const LODS = [[], [], [], [], [], []]
-const LODSSPHERE = new THREE.SphereGeometry( 0.025, 10, 10 );
-const LODSSPHEREMATERIALS = new THREE.MeshPhongMaterial( { color: 0xFF0000} );
-
-const LODSMESHES = []
-function showLods() {
-  LODSMESHES.forEach(mesh => {
-    scene.remove(mesh)
-    mesh.dispose()
-  });
-  LODSMESHES.length = 0;
-
-  for(let lod = 0; lod < maxLoD; ++lod) {
-    LODSMESHES[lod] = new THREE.InstancedMesh(LODSSPHERE, LODSSPHEREMATERIALS, Math.pow(10, lod+1));
-    scene.add(LODSMESHES[lod])
-
-    const matrix = new THREE.Matrix4();
-    const scaleVector = (new THREE.Vector3(1, 1, 1)).multiplyScalar(1.5/(lod+1))
-    const rotation = new THREE.Quaternion()
-    for(let i = 0; i < LODS[lod].length; ++i) {
-      matrix.compose(LODS[lod][i], rotation, scaleVector)
-      LODSMESHES[lod].setMatrixAt(i, matrix);
-    }
-
-    LODS[lod].length = 0;
-  }
-
-  
-}
-///
-
 const depths = []
 let checks = 0;
 function initiateMarch(ray) {
@@ -239,8 +206,6 @@ function initiateMarch(ray) {
   Dir.copy(ray2.direction);
 
   for(let lod = 0; lod < maxLoD; ++lod) {
-    // scaleLoD[lod] = Math.pow(4, lod);
-    // resolutionLoD[lod] = 1 / scaleLoD[lod];
     resolutionLoD[lod] = 1 / Math.pow(4, lod);
 
   }
@@ -249,15 +214,10 @@ function initiateMarch(ray) {
 
   depths.length = 0
 
-  stepThroughCell(new THREE.Vector3(0, 0, 0), ray2, entryPoint, entry, exit, 0, new THREE.Vector3(), entry*4);
+  stepThroughCell(new THREE.Vector3(0, 0, 0), ray2, entryPoint, entry, exit, 0, entry*4);
 
   /// debug
-  depths.forEach(d => {
-    LODS[2].push(ray.origin.clone().addScaledVector(ray.direction, d))
 
-  })
-
-  showLods()
   inter0.position.copy(ray.origin.clone().addScaledVector(ray.direction, entry*4));
   inter1.position.copy(ray.origin.clone().addScaledVector(ray.direction, exit*4));
 
@@ -265,33 +225,23 @@ function initiateMarch(ray) {
   ///
 }
 
-function stepThroughCell(cell, ray, entryPoint, entryT, exitT, lod = 0, offset = new THREE.Vector3(), depth = 0, globalCell = new THREE.Vector3()) {  
+function stepThroughCell(cell, ray, entryPoint, entryT, exitT, lod = 0,  depth = 0, globalCell = new THREE.Vector3()) {  
   if(lod >= maxLoD)
     return;
 
   ++checks;
-  /// debug
-  // depths.push(depth)
-  ///
 
   /// rescaling time from [0,1]² -> [0,4]²
   const timeToExit = (exitT - entryT) * 4;
 
-  /// offset in [0,1]²
-  const cellOffset = offset.clone().addScaledVector(cell, resolutionLoD[lod]);
   
   /// entry point: [0, 1]²
   /// first point : [0, 4]²
   const firstPoint = entryPoint.clone().sub(cell).multiplyScalar(4);
 
   /// DEBUG
-  // showCell(cell, lod, cellOffset.clone());
-  const debugPos = firstPoint.clone().multiplyScalar(resolutionLoD[lod]).addScaledVector(cellOffset, 4);
-  LODS[lod].push(debugPos)
-
   const globalCellLod = globalCell.clone().multiplyScalar(4).add(cell);
   gridManager.showCell(lod, globalCellLod);
-  // console.log(lod, cell, globalCellLod);
   
   /// 
 
@@ -344,7 +294,6 @@ function stepThroughCell(cell, ray, entryPoint, entryT, exitT, lod = 0, offset =
       hits[j],
       hits[j+1],
       lod+1,
-      cellOffset.clone(),
       newDepth,
       globalCellLod,
     );

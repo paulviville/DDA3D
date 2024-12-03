@@ -1,51 +1,5 @@
 import * as THREE from 'three';
 
-export class Grid3D extends THREE.LineSegments {
-
-	constructor( size = 1, divisions = 1, linewidth = 1, color = 0x888888, corner = new THREE.Vector3() ) {
-
-		const step = size / divisions;
-		const vertices = [], colors = [];
-        
-		const x = corner.x;
-		const y = corner.y;
-		const z = corner.z;
-
-        for ( let i = 0; i <= divisions; i ++) {
-			for ( let j = 0; j <= divisions; j ++) {
-				vertices.push(x + j * step, y + i * step, z);
-				vertices.push(x + j * step, y + i * step, z + size);
-
-				vertices.push(x, y + i * step, z + j * step);
-				vertices.push(x + size, y + i * step, z + j * step);
-
-				vertices.push(x + i * step, y, z + j * step);
-				vertices.push(x + i * step, y + size, z + j * step);
-
-			}
-		}
-
-
-		const geometry = new THREE.BufferGeometry();
-		geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( vertices, 3 ) );
-
-		const material = new THREE.LineBasicMaterial( { color: color, linewidth: linewidth } );
-
-		super( geometry, material );
-
-		this.type = 'Grid2D';
-
-	}
-
-	dispose() {
-
-		this.geometry.dispose();
-		this.material.dispose();
-
-	}
-
-}
-
 const DIVS = 4;
 const SIZE = 4;
 
@@ -70,10 +24,6 @@ function buildGridGeometry() {
 		}
 	}
 
-	// const geometry = new THREE.BufferGeometry();
-	// geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( vertices, 3 ) );
-	console.log(vertices)
-	// return geometry;
 	return vertices;
 }
 
@@ -113,7 +63,7 @@ export class LoDGrid3DManager {
 		}
 		gridGeometry.setAttribute('instanceMatrix', new THREE.InstancedBufferAttribute(this.#instanceMatrix, 16));
 
-		const gridMaterial = new THREE.LineBasicMaterial({color: 0xffffff, linewidth: 1,
+		const gridMaterial = new THREE.LineBasicMaterial({color: 0x000000, linewidth: 1,
 			onBeforeCompile: shader => {
 				shader.vertexShader = `
 				attribute mat4 instanceMatrix;
@@ -125,15 +75,10 @@ export class LoDGrid3DManager {
 				  transformed = (instanceMatrix * vec4(position, 1)).xyz;
 			`
 				);
-				console.log(shader.vertexShader)
 			  }
 		});
 		gridGeometry.attributes.instanceMatrix.needsUpdate = true
 		this.#mesh = new THREE.LineSegments(gridGeometry, gridMaterial);
-		console.log(this.#mesh, gridGeometry)
-
-		// this.#mesh.count = 3;
-		// gridGeometry.instanceCount = 0
 	}
 
 	addTo(scene) {
@@ -152,7 +97,6 @@ export class LoDGrid3DManager {
 	showCell(lod = 0, cell = new THREE.Vector3(0, 0, 0)) {
 		const offset = this.#lodOffsets[lod];
 		const id = this.#voxelId(cell, lod);
-		// console.log(id, id + offset);
 
    		const rotation = new THREE.Quaternion();
 
@@ -170,7 +114,6 @@ export class LoDGrid3DManager {
 
 		const matrix = new THREE.Matrix4();
 		matrix.compose(position, rotation, scale);
-		// matrix.toArray(this.#instanceMatrix, (id + offset)*16);
 		matrix.toArray(this.#instanceMatrix, matId*16);
 
 	}
